@@ -4,28 +4,18 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-// Types
-interface KnowledgeSource {
-  topic: string;
-  content: string;
-  relevance?: number;
-}
-
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  sources?: KnowledgeSource[];
+  sources?: Array<{ topic: string; content: string; relevance?: number }>;
 }
 
-type ChatMode = 'learn' | 'hands_on';
-
-function ChatContent() {
+function HandsOnChatContent() {
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<ChatMode>('learn');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,17 +28,16 @@ function ChatContent() {
     scrollToBottom();
   }, [messages]);
 
-  // Handle pre-filled question from URL
+  // Handle pre-filled scenario from URL
   useEffect(() => {
-    const question = searchParams.get('q');
-    if (question) {
-      setInput(question);
-      // Auto-focus textarea
+    const scenario = searchParams.get('scenario');
+    if (scenario) {
+      setInput(`Help me with: ${scenario}`);
       textareaRef.current?.focus();
     }
   }, [searchParams]);
 
-  // Send message to backend
+  // Send message to backend with hands_on mode
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -75,7 +64,7 @@ function ChatContent() {
         },
         body: JSON.stringify({ 
           message: userMessage,
-          mode: mode // Include current mode
+          mode: 'hands_on' // Hands-on mode
         }),
       });
 
@@ -110,12 +99,12 @@ function ChatContent() {
     }
   };
 
-  // Handle mode switch
-  const handleModeSwitch = (newMode: ChatMode) => {
-    setMode(newMode);
-    // Clear messages when switching modes for better UX
-    setMessages([]);
-  };
+  const quickActions = [
+    "My ROAS dropped from 4x to 2x, help me fix it",
+    "Walk me through setting up a Performance Max campaign",
+    "My landing page converts at 1%, how do I improve it?",
+    "Help me set up proper attribution tracking"
+  ];
 
   return (
     <div className="flex flex-col h-screen bg-slate-50">
@@ -123,39 +112,35 @@ function ChatContent() {
       <header className="border-b bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link 
-              href="/"
-              className="flex items-center space-x-2 text-slate-700 hover:text-slate-900 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="font-medium">Back to Home</span>
-            </Link>
-            
-            {/* Mode Switcher */}
-            <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => handleModeSwitch('learn')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                  mode === 'learn'
-                    ? 'bg-white text-green-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/hands-on"
+                className="flex items-center space-x-2 text-slate-700 hover:text-slate-900 transition-colors"
               >
-                Learn Mode
-              </button>
-              <button
-                onClick={() => handleModeSwitch('hands_on')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                  mode === 'hands_on'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Hands-On Mode
-              </button>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="font-medium">Back to Practice</span>
+              </Link>
+              <div className="text-slate-400">•</div>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">Hands-On Practice Session</h1>
+                  <p className="text-sm text-slate-500">Get step-by-step execution guidance</p>
+                </div>
+              </div>
             </div>
+            <Link 
+              href="/learn"
+              className="px-4 py-2 text-sm font-medium text-green-600 hover:text-green-700 transition-colors"
+            >
+              Switch to Learning Mode
+            </Link>
           </div>
         </div>
       </header>
@@ -163,18 +148,9 @@ function ChatContent() {
       {/* Chat Container */}
       <div className="flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto">
         {/* Info Banner */}
-        <div className={`px-4 py-3 border-b ${
-          mode === 'learn' 
-            ? 'bg-green-50 border-green-100' 
-            : 'bg-purple-50 border-purple-100'
-        }`}>
-          <p className={`text-sm text-center ${
-            mode === 'learn' ? 'text-green-800' : 'text-purple-800'
-          }`}>
-            {mode === 'learn' 
-              ? 'Learning Mode: Ask questions to understand performance marketing concepts step-by-step'
-              : 'Hands-On Mode: Get detailed execution guidance with step-by-step instructions and UI walkthroughs'
-            }
+        <div className="px-4 py-3 bg-purple-50 border-b border-purple-100">
+          <p className="text-sm text-purple-800 text-center">
+            Describe your performance marketing challenge and get detailed, step-by-step execution guidance with UI instructions.
           </p>
         </div>
 
@@ -182,28 +158,30 @@ function ChatContent() {
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-12">
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-                mode === 'learn' ? 'bg-green-100' : 'bg-purple-100'
-              }`}>
-                <svg className={`w-8 h-8 ${
-                  mode === 'learn' ? 'text-green-600' : 'text-purple-600'
-                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mode === 'learn' ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                  )}
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                {mode === 'learn' ? 'Ready to learn?' : 'Ready for hands-on practice?'}
-              </h3>
-              <p className="text-slate-600">
-                {mode === 'learn' 
-                  ? 'Ask your first question about performance marketing concepts'
-                  : 'Describe your performance marketing challenge for step-by-step guidance'
-                }
-              </p>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Ready for hands-on practice?</h3>
+              <p className="text-slate-600 mb-6">Describe your performance marketing challenge and get step-by-step guidance</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
+                {quickActions.map((action, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInput(action)}
+                    className="p-4 text-left bg-white border border-slate-200 rounded-lg hover:border-purple-300 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                      <p className="text-sm text-slate-700 font-medium">{action}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -213,36 +191,24 @@ function ChatContent() {
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-3xl rounded-2xl px-6 py-4 ${
+                className={`max-w-4xl rounded-2xl px-6 py-4 ${
                   message.role === 'user'
-                    ? mode === 'learn'
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
                     : 'bg-white border border-slate-200 text-slate-900 shadow-sm'
                 }`}
               >
                 <div className="flex items-start space-x-3">
                   {message.role === 'assistant' && (
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      mode === 'learn' 
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-500'
-                        : 'bg-gradient-to-br from-purple-500 to-indigo-500'
-                    }`}>
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {mode === 'learn' ? (
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        ) : (
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                        )}
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className={`whitespace-pre-wrap leading-relaxed ${
-                      mode === 'hands_on' && message.role === 'assistant' ? 'font-mono text-sm' : ''
-                    }`}>
+                    <div className="whitespace-pre-wrap leading-relaxed font-mono text-sm">
                       {message.content}
-                    </p>
+                    </div>
                     {message.sources && message.sources.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-slate-200">
                         <p className="text-xs text-slate-500 mb-2">Sources:</p>
@@ -261,13 +227,9 @@ function ChatContent() {
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="max-w-3xl rounded-2xl px-6 py-4 bg-white border border-slate-200 shadow-sm">
+              <div className="max-w-4xl rounded-2xl px-6 py-4 bg-white border border-slate-200 shadow-sm">
                 <div className="flex items-center space-x-3">
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    mode === 'learn' 
-                      ? 'bg-gradient-to-br from-green-500 to-emerald-500'
-                      : 'bg-gradient-to-br from-purple-500 to-indigo-500'
-                  }`}>
+                  <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
                     <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -309,14 +271,9 @@ function ChatContent() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={mode === 'learn' 
-                    ? "Ask about any performance marketing concept..."
-                    : "Describe your performance marketing challenge..."
-                  }
+                  placeholder="Describe your performance marketing challenge..."
                   rows={1}
-                  className={`w-full px-4 py-3 pr-12 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none text-slate-900 placeholder-slate-400 ${
-                    mode === 'learn' ? 'focus:ring-green-500' : 'focus:ring-purple-500'
-                  }`}
+                  className="w-full px-4 py-3 pr-12 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-slate-900 placeholder-slate-400"
                   style={{ minHeight: '52px', maxHeight: '200px' }}
                 />
                 <div className="absolute bottom-3 right-3 text-xs text-slate-400">
@@ -326,11 +283,7 @@ function ChatContent() {
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
-                className={`flex-shrink-0 px-6 py-3 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg ${
-                  mode === 'learn'
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
-                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
-                }`}
+                className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
               >
                 {isLoading ? (
                   <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -351,10 +304,10 @@ function ChatContent() {
   );
 }
 
-export default function ChatPage() {
+export default function HandsOnChatPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ChatContent />
+      <HandsOnChatContent />
     </Suspense>
   );
 }
