@@ -3,11 +3,21 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { ThemeToggle } from '@/components/theme-toggle';
+import ShaderBackground from '@/components/ShaderBackground';
+import { Footer } from '@/components/footer';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   sources?: Array<{ topic: string; content: string; relevance?: number }>;
+}
+
+function formatMessage(content: string): string {
+  return content
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '• $1');
 }
 
 function HandsOnChatContent() {
@@ -19,16 +29,14 @@ function HandsOnChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) scrollToBottom();
   }, [messages]);
 
-  // Handle pre-filled scenario from URL
   useEffect(() => {
     const scenario = searchParams.get('scenario');
     if (scenario) {
@@ -37,61 +45,38 @@ function HandsOnChatContent() {
     }
   }, [searchParams]);
 
-  // Send message to backend with hands_on mode
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
     const userMessage = input.trim();
     setInput('');
     setError(null);
-
-    // Add user message to chat
-    const newUserMessage: Message = { role: 'user', content: userMessage };
-    setMessages(prev => [...prev, newUserMessage]);
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      
-      if (!backendUrl) {
-        throw new Error('Backend URL not configured');
-      }
+      if (!backendUrl) throw new Error('Backend URL not configured');
 
       const response = await fetch(`${backendUrl}/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: userMessage,
-          mode: 'hands_on' // Hands-on mode
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage, mode: 'hands_on' }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || `Server error: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(errorData.message || `Server error: ${response.status}`);
       }
 
       const data = await response.json();
-
-      // Add AI response to chat
-      const aiMessage: Message = {
-        role: 'assistant',
-        content: data.reply,
-        sources: data.sources || [],
-      };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply, sources: data.sources || [] }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
-      console.error('Chat error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -107,77 +92,69 @@ function HandsOnChatContent() {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-      {/* Header */}
-      <header className="border-b bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/hands-on"
-                className="flex items-center space-x-2 text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="font-medium">Back to Practice</span>
-              </Link>
-              <div className="text-slate-400">•</div>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                  </svg>
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold text-slate-900">Hands-On Practice Session</h1>
-                  <p className="text-sm text-slate-500">Get step-by-step execution guidance</p>
-                </div>
-              </div>
-            </div>
-            <Link 
-              href="/learn"
-              className="px-4 py-2 text-sm font-medium text-green-600 hover:text-green-700 transition-colors"
-            >
-              Switch to Learning Mode
-            </Link>
+    <div className="flex flex-col h-screen relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/4964989.jpg)' }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70"></div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="relative z-20 flex items-center justify-between px-12 py-8">
+        <div className="flex items-center space-x-3">
+          <div className="text-2xl font-black tracking-tight text-black drop-shadow-lg">
+            AI<br/>PERFORMANCE
           </div>
         </div>
-      </header>
 
-      {/* Chat Container */}
-      <div className="flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto">
-        {/* Info Banner */}
-        <div className="px-4 py-3 bg-purple-50 border-b border-purple-100">
-          <p className="text-sm text-purple-800 text-center">
-            Describe your performance marketing challenge and get detailed, step-by-step execution guidance with UI instructions.
-          </p>
+        <div className="hidden lg:flex items-center space-x-12 text-xs font-black uppercase tracking-wider">
+          <Link href="/" className="text-black hover:text-[#d4a574] transition-colors drop-shadow-md">Home</Link>
+          <Link href="/learn" className="text-black hover:text-[#d4a574] transition-colors drop-shadow-md">Learn</Link>
+          <Link href="/hands-on" className="text-black hover:text-[#d4a574] transition-colors drop-shadow-md">Hands-On</Link>
+          <Link href="/chat" className="text-black hover:text-[#d4a574] transition-colors drop-shadow-md">Chat</Link>
         </div>
 
+        <Link href="/hands-on" className="text-xs font-black uppercase tracking-wider text-black hover:text-[#d4a574] transition-colors drop-shadow-md">
+          ← Back to Scenarios
+        </Link>
+      </nav>
+      
+      <div className="relative z-10 flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto my-6">
+        {/* Chat Container with Border */}
+        <div className="flex flex-col h-full bg-white/5 backdrop-blur-sm rounded-2xl border-2 border-purple-400/40 shadow-2xl overflow-hidden">
+          {/* Info Banner */}
+          <div className="px-4 py-3 bg-purple-500/20 backdrop-blur-md border-b border-purple-500/30">
+            <p className="text-sm text-center text-white">
+              Describe your performance marketing challenge and get detailed, step-by-step execution guidance.
+            </p>
+          </div>
+
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 backdrop-blur-sm rounded-full mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Ready for hands-on practice?</h3>
-              <p className="text-slate-600 mb-6">Describe your performance marketing challenge and get step-by-step guidance</p>
+              <h3 className="text-lg font-semibold text-white mb-2">Ready for hands-on practice?</h3>
+              <p className="text-white/80 mb-6">Describe your challenge and get step-by-step guidance</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
                 {quickActions.map((action, index) => (
                   <button
                     key={index}
                     onClick={() => setInput(action)}
-                    className="p-4 text-left bg-white border border-slate-200 rounded-lg hover:border-purple-300 hover:shadow-md transition-all"
+                    className="p-4 text-left bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all"
                   >
                     <div className="flex items-start space-x-3">
-                      <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-white mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                       </svg>
-                      <p className="text-sm text-slate-700 font-medium">{action}</p>
+                      <p className="text-sm text-white font-medium">{action}</p>
                     </div>
                   </button>
                 ))}
@@ -186,60 +163,32 @@ function HandsOnChatContent() {
           )}
 
           {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-4xl rounded-2xl px-6 py-4 ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                    : 'bg-white border border-slate-200 text-slate-900 shadow-sm'
-                }`}
-              >
-                <div className="flex items-start space-x-3">
-                  {message.role === 'assistant' && (
-                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="whitespace-pre-wrap leading-relaxed font-mono text-sm">
-                      {message.content}
-                    </div>
-                    {message.sources && message.sources.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <p className="text-xs text-slate-500 mb-2">Sources:</p>
-                        <div className="space-y-1">
-                          {message.sources.map((source, idx) => (
-                            <p key={idx} className="text-xs text-slate-600">• {source.topic}</p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+            <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-4xl rounded-2xl px-6 py-4 ${
+                message.role === 'user'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                  : 'bg-white/20 backdrop-blur-md border border-white/20 text-white shadow-sm'
+              }`}>
+                <div className="whitespace-pre-wrap leading-relaxed font-mono text-sm" dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+                {message.sources && message.sources.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/20">
+                    <p className="text-xs text-white/70 mb-2">Sources:</p>
+                    {message.sources.map((source, idx) => (
+                      <p key={idx} className="text-xs text-white/80">• {source.topic}</p>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ))}
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="max-w-4xl rounded-2xl px-6 py-4 bg-white border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
+              <div className="rounded-2xl px-6 py-4 bg-white/20 backdrop-blur-md border border-white/20 shadow-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
               </div>
             </div>
@@ -247,54 +196,35 @@ function HandsOnChatContent() {
 
           {error && (
             <div className="flex justify-center">
-              <div className="max-w-md rounded-lg px-4 py-3 bg-red-50 border border-red-200">
-                <div className="flex items-center space-x-2">
-                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
+              <div className="rounded-lg px-4 py-3 bg-red-500/20 backdrop-blur-sm border border-red-500/30">
+                <p className="text-sm text-white">{error}</p>
               </div>
             </div>
           )}
-
           <div ref={messagesEndRef} />
-        </div>
+          </div>
 
-        {/* Input Area */}
-        <div className="border-t bg-white px-4 py-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-end space-x-3">
-              <div className="flex-1 relative">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Describe your performance marketing challenge..."
-                  rows={1}
-                  className="w-full px-4 py-3 pr-12 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-slate-900 placeholder-slate-400"
-                  style={{ minHeight: '52px', maxHeight: '200px' }}
-                />
-                <div className="absolute bottom-3 right-3 text-xs text-slate-400">
-                  <span className="hidden sm:inline">Enter to send • Shift+Enter for new line</span>
-                </div>
-              </div>
+          {/* Input Area */}
+          <div className="border-t border-white/20 bg-white/10 backdrop-blur-md px-4 py-4">
+            <div className="max-w-4xl mx-auto flex items-end space-x-3">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Describe your performance marketing challenge..."
+                rows={1}
+                className="flex-1 px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-white placeholder-white/50"
+                style={{ minHeight: '52px', maxHeight: '200px' }}
+              />
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
-                className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
               >
-                {isLoading ? (
-                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                )}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
               </button>
             </div>
           </div>
