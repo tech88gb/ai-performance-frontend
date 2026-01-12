@@ -53,11 +53,11 @@ export default function Home() {
             {/* Right Side - Description and CTA */}
             <div className="space-y-6 lg:pl-12 pb-8">
               <p className="text-white/90 text-base leading-relaxed font-light">
-                We build more than just campaigns—we earn trust.
+                Master performance marketing with AI-powered guidance.
                 <br />
-                With expert guidance and a focus on results,
+                Learn step-by-step, practice hands-on, and get instant answers
                 <br />
-                we deliver success on time, every time.
+                to accelerate your marketing expertise.
               </p>
 
               <Link 
@@ -70,7 +70,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <span className="text-[#d4a574] text-lg font-semibold border-b-2 border-[#d4a574] pb-1 group-hover:text-white group-hover:border-white transition-all">
-                  Get Consultation
+                  Start Learning
                 </span>
               </Link>
             </div>

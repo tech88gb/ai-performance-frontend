@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
 import ShaderBackground from '@/components/ShaderBackground';
 import { Footer } from '@/components/footer';
+import MessageRenderer from '@/components/MessageRenderer';
 
 const knowledgeModules = [
   {
@@ -72,14 +73,9 @@ function LearnContent() {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    if (messages.length > 0) scrollToBottom();
-  }, [messages]);
+  // Removed autoscroll functionality
 
   useEffect(() => {
     const question = searchParams.get('q');
@@ -89,12 +85,34 @@ function LearnContent() {
     }
   }, [searchParams]);
 
+  // Smooth scroll when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages]);
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
     const userMessage = input.trim();
     setInput('');
     setError(null);
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Scroll to bottom immediately after user sends message
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+    
     setIsLoading(true);
 
     try {
@@ -159,8 +177,8 @@ function LearnContent() {
       </nav>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="relative z-10 max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white/85 backdrop-blur-md rounded-xl border border-black/20 p-6 lg:sticky lg:top-8">
@@ -203,8 +221,8 @@ function LearnContent() {
           </div>
 
           {/* Chat Area */}
-          <div className="lg:col-span-3">
-            <div className="bg-white/85 backdrop-blur-md rounded-xl border border-black/20 h-[600px] flex flex-col">
+          <div className="lg:col-span-5">
+            <div className="bg-white/85 backdrop-blur-md rounded-xl border border-black/20 h-[calc(100vh-200px)] flex flex-col">
               <div className="px-6 py-4 border-b border-black/20">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgb(230, 220, 200)' }}>
@@ -219,7 +237,7 @@ function LearnContent() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4" ref={messagesContainerRef} style={{ scrollBehavior: 'smooth' }}>
                 {messages.length === 0 && (
                   <div className="text-center py-12">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-black/20 backdrop-blur-sm rounded-full mb-4">
@@ -241,8 +259,12 @@ function LearnContent() {
 
                 {messages.map((message, index) => (
                   <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl rounded-2xl px-6 py-4 ${message.role === 'user' ? 'text-black' : 'bg-white/60 backdrop-blur-md border border-black/20 text-black'}`} style={message.role === 'user' ? { backgroundColor: 'rgb(230, 220, 200)' } : {}}>
-                      <div className="whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+                    <div className={`w-full rounded-2xl px-6 py-4 ${message.role === 'user' ? 'text-black' : 'bg-white/60 backdrop-blur-md border border-black/20 text-black'}`} style={message.role === 'user' ? { backgroundColor: 'rgb(230, 220, 200)' } : {}}>
+                      {message.role === 'assistant' ? (
+                        <MessageRenderer content={message.content} />
+                      ) : (
+                        <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                      )}
                       {message.sources && message.sources.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-black/20">
                           <p className="text-xs text-black/70 mb-2">Sources:</p>
